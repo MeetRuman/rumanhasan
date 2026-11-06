@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ruman — Video Editor Portfolio</title>
+  <meta name="description" content="Freelance video editor turning raw footage into stories that hold attention. Short-form, long-form and motion ads." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #F5F6F8;
+      --ink: #17191F;
+      --blue: #123CC4;
+      --ice: #E8EEFF;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .font-display { font-family: 'Sora', 'Inter', sans-serif; }
+    ::selection { background: var(--blue); color: #fff; }
+
+    /* film grain */
+    .grain::after {
+      content: "";
+      position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: .035;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+
+    .glow-card { transition: box-shadow .5s cubic-bezier(.2,.8,.2,1), transform .5s cubic-bezier(.2,.8,.2,1), border-color .5s; }
+    .glow-card:hover {
+      box-shadow: 0 0 0 1px rgba(18,60,196,.25), 0 24px 70px -18px rgba(18,60,196,.45), 0 0 50px -10px rgba(120,150,255,.55);
+    }
+    .tile-shadow { box-shadow: 0 30px 60px -25px rgba(18,60,196,.45), 0 10px 25px -12px rgba(23,25,31,.35), 0 0 0 1px rgba(255,255,255,.6); }
+
+    .shimmer-text {
+      background: linear-gradient(100deg, #123CC4 20%, #5B82FF 50%, #123CC4 80%);
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: shimmer 6s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: -200% center; } }
+    @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity:.4; transform: scale(1.6);} }
+    .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+    @keyframes scrollCue { 0% { transform: translateY(-100%);} 100% { transform: translateY(300%);} }
+    .scroll-cue { animation: scrollCue 1.8s cubic-bezier(.6,0,.4,1) infinite; }
+  </style>
+</head>
+<body class="grain">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef } = React;
+    const FM = window.Motion || window.FramerMotion;
+    const { motion, AnimatePresence, useScroll, useTransform } = FM;
+
+    /* ---------- DATA ---------- */
+    const projects = [
+      { id: 1, category: "Short-form", title: "Talking Head", aspect: "9:16", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793962295/Talking_Head_Final_Video_-_Composed.mp4" },
+      { id: 2, category: "Short-form", title: "Talking Head", aspect: "9:16", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793944712/Talking-Head_Viral_Content_Ideas_Final.mp4" },
+      { id: 3, category: "Short-form", title: "Talking Head", aspect: "9:16", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793944112/Talking-Head_Video_Editor_Recruitment_-_Final_Render.mp4" },
+      { id: 4, category: "Short-form", title: "Talking Head", aspect: "9:16", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793942610/Talking_Head_-_Nvidia_Parakeet_TDT_Final_VIdeo.mp4" },
+      { id: 5, category: "Long-form", title: "Prof Jiang", aspect: "16:9", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793946577/Short-Form_ProfJiang_-_Final_Video.mp4" },
+      { id: 6, category: "Long-form", title: "Motion Ads", aspect: "16:9", video: "https://res.cloudinary.com/hrpvsqie/video/upload/f_auto,q_auto/v1793946121/BakiZero_-_Motion_Ads_English_Final_Video.mp4" }
+    ];
+
+    const poster = (url, w = 700, t = 1) =>
+      url.replace("f_auto,q_auto", `so_${t},q_auto,w_${w}`).replace(/\.mp4$/, ".jpg");
+
+    const faqs = [
+      { q: "How long does a project take?", a: "Short-form: 2-3 days. Long-form: 6-7 days or more based on complexity." },
+      { q: "What does your process look like?", a: "Understand requirements -> Research -> Draft -> Finalize. I keep you updated throughout." },
+      { q: "How many revisions do you offer?", a: "2-3 rounds after the first draft." },
+      { q: "What do you need to start?", a: "Raw footage, references, brief, and music preferences." },
+      { q: "How does pricing work?", a: "Depends on type/duration. 50% advance, 50% on delivery." },
+      { q: "How do we communicate?", a: "WhatsApp primarily, or Email/LinkedIn. I provide multiple updates daily." },
+      { q: "What do I get at the end?", a: "Final 1080p video. 2K/4K available. Project files on request." }
+    ];
+
+    const ease = [0.22, 1, 0.36, 1];
+
+    /* ---------- ICONS ---------- */
+    const Icon = ({ d, className = "w-5 h-5", fill = "none", sw = 1.8 }) => (
+      <svg viewBox="0 0 24 24" className={className} fill={fill} stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
+      </svg>
+    );
+    const PlayI = (p) => <Icon {...p} fill="currentColor" sw={0} d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />;
+    const PauseI = (p) => <Icon {...p} fill="currentColor" sw={0} d={["M7 5h3.5v14H7z", "M13.5 5H17v14h-3.5z"]} />;
+    const VolI = (p) => <Icon {...p} d={["M11 5 6 9H3v6h3l5 4V5z", "M15.5 8.5a5 5 0 0 1 0 7", "M18.5 5.5a9 9 0 0 1 0 13"]} />;
+    const MuteI = (p) => <Icon {...p} d={["M11 5 6 9H3v6h3l5 4V5z", "M22 9l-6 6", "M16 9l6 6"]} />;
+    const ArrowI = (p) => <Icon {...p} d={["M5 12h14", "M13 6l6 6-6 6"]} />;
+    const ArrowUR = (p) => <Icon {...p} d={["M7 17 17 7", "M8 7h9v9"]} />;
+
+    /* ---------- NAV ---------- */
+    function Nav() {
+      const [solid, setSolid] = useState(false);
+      useEffect(() => {
+        const f = () => setSolid(window.scrollY > 30);
+        f(); window.addEventListener("scroll", f, { passive: true });
+        return () => window.removeEventListener("scroll", f);
+      }, []);
+      const links = [["Work", "#work"], ["Process", "#process"], ["About", "#about"], ["FAQ", "#faq"]];
+      return (
+        <motion.header
+          initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, ease }}
+          className="fixed top-3 sm:top-4 inset-x-0 z-50 px-3 sm:px-6"
+        >
+          <div className={`mx-auto max-w-6xl flex items-center justify-between rounded-full px-4 sm:px-6 py-2.5 transition-all duration-500 ${solid ? "bg-white/75 backdrop-blur-xl border border-white/80 shadow-[0_10px_40px_-15px_rgba(18,60,196,.3)]" : "bg-transparent border border-transparent"}`}>
+            <a href="#top" className="font-display font-semibold tracking-tight text-[17px] flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#123CC4] shadow-[0_0_14px_3px_rgba(18,60,196,.55)]"></span>
+              Ruman<span className="text-[#123CC4]">.</span>
+            </a>
+            <nav className="hidden md:flex items-center gap-8 text-sm text-[#17191F]/70">
+              {links.map(([l, h]) => (
+                <a key={l} href={h} className="hover:text-[#123CC4] transition-colors">{l}</a>
+              ))}
+            </nav>
+            <a href="#contact" className="text-sm font-medium bg-[#17191F] text-white px-4 py-2 rounded-full hover:bg-[#123CC4] transition-colors duration-300">
+              Let's talk
+            </a>
+          </div>
+        </motion.header>
+      );
+    }
+
+    /* ---------- HERO ---------- */
+    const tiles = [
+      { src: projects[0], t: 2, left: 34, top: 6, w: 28, ratio: "9/16", pull: [1, 13], rot: -2, z: 30, label: "Talking Head", tc: "00:00:18:12" },
+      { src: projects[5], t: 3, left: 0, top: 14, w: 36, ratio: "16/9", pull: [22, 17], rot: -5, z: 20, label: "Motion Ads", tc: "00:01:04:02" },
+      { src: projects[1], t: 2, left: 66, top: 0, w: 26, ratio: "9/16", pull: [-20, 17], rot: 4, z: 20, label: "Viral Ideas", tc: "00:00:09:21" },
+      { src: projects[4], t: 4, left: 52, top: 62, w: 44, ratio: "16/9", pull: [-17, -17], rot: 3, z: 40, label: "Prof Jiang", tc: "00:02:41:08" },
+      { src: projects[2], t: 3, left: 6, top: 48, w: 24, ratio: "9/16", pull: [22, -15], rot: -3, z: 25, label: "Recruitment", tc: "00:00:27:15" }
+    ];
+
+    function Tile({ cfg, idx, p }) {
+      const x = useTransform(p, [0, 1], ["0%", `${cfg.pull[0]}%`]);
+      const y = useTransform(p, [0, 1], ["0%", `${cfg.pull[1]}%`]);
+      const s = useTransform(p, [0, 1], [1, 0.82]);
+      const r = useTransform(p, [0, 1], [cfg.rot, cfg.rot * 0.3]);
+      return (
+        <motion.div style={{ x, y, scale: s }} className="absolute inset-0 pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.3 + idx * 0.12, ease }}
+            style={{ rotate: r, left: cfg.left + "%", top: cfg.top + "%", width: cfg.w + "%", aspectRatio: cfg.ratio, zIndex: cfg.z }}
+            className="absolute"
+          >
+            <motion.div
+              animate={{ y: [0, idx % 2 ? 10 : -12, 0] }}
+              transition={{ duration: 5 + idx * 0.8, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-full rounded-xl sm:rounded-2xl overflow-hidden tile-shadow bg-gradient-to-br from-[#E8EEFF] via-[#c9d6ff] to-[#123CC4] relative"
+            >
+              <img
+                src={poster(cfg.src.video, 500, cfg.t)} alt={cfg.label} loading="eager"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0b1230]/70 via-transparent to-[#0b1230]/20" />
+              <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex items-center gap-1.5 text-[8px] sm:text-[10px] font-medium tracking-widest text-white/90">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 pulse-dot"></span>REC
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center text-white">
+                  <PlayI className="w-3 h-3 sm:w-4 sm:h-4 ml-0.5" />
+                </span>
+              </div>
+              <div className="absolute bottom-0 inset-x-0 p-2 sm:p-3">
+                <div className="flex justify-between items-end text-white">
+                  <span className="text-[9px] sm:text-xs font-medium">{cfg.label}</span>
+                  <span className="hidden sm:block text-[9px] font-mono opacity-70">{cfg.tc}</span>
+                </div>
+                <div className="mt-1.5 h-[2px] bg-white/25 rounded-full overflow-hidden">
+                  <div className="h-full bg-white/90 rounded-full" style={{ width: 25 + idx * 14 + "%" }} />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      );
+    }
+
+    function Hero() {
+      const range = useRef(800);
+      useEffect(() => {
+        const set = () => { range.current = window.innerHeight * (window.innerWidth >= 1024 ? 0.9 : 0.8); };
+        set(); window.addEventListener("resize", set);
+        return () => window.removeEventListener("resize", set);
+      }, []);
+      const { scrollY } = useScroll();
+      const p = useTransform(scrollY, (v) => Math.min(Math.max(v / range.current, 0), 1));
+
+      const textOpacity = useTransform(p, [0, 0.7], [1, 0.12]);
+      const textY = useTransform(p, [0, 1], [0, -70]);
+      const collageScale = useTransform(p, [0, 1], [1, 0.62]);
+      const collageOpacity = useTransform(p, [0, 0.75, 1], [1, 1, 0.55]);
+      const collageY = useTransform(p, [0, 1], [0, 20]);
+      const glowScale = useTransform(p, [0, 1], [1, 1.8]);
+      const glowOpacity = useTransform(p, [0, 1], [0.8, 0.3]);
+      const cueOpacity = useTransform(p, [0, 0.15], [1, 0]);
+
+      const stagger = (d) => ({ initial: { opacity: 0, y: 28 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.9, delay: d, ease } });
+
+      return (
+        <section id="top" className="relative lg:h-[190vh]">
+          <div className="lg:sticky lg:top-0 lg:h-screen overflow-hidden">
+            {/* ambient glows */}
+            <motion.div style={{ scale: glowScale, opacity: glowOpacity }} className="absolute right-[-10%] top-[10%] w-[640px] h-[640px] rounded-full bg-[radial-gradient(circle,rgba(18,60,196,.22),rgba(232,238,255,.5)_45%,transparent_70%)] blur-3xl pointer-events-none" />
+            <div className="absolute left-[-15%] bottom-[-10%] w-[480px] h-[480px] rounded-full bg-[radial-gradient(circle,rgba(232,238,255,.95),transparent_65%)] blur-2xl pointer-events-none" />
+            <div className="absolute inset-0 opacity-[.35] pointer-events-none [background-image:linear-gradient(rgba(23,25,31,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(23,25,31,.05)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]" />
+
+            <div className="relative mx-auto max-w-6xl px-5 sm:px-6 pt-28 pb-14 lg:pt-20 lg:pb-0 lg:h-full grid lg:grid-cols-[1.02fr_1fr] gap-10 lg:gap-6 items-center">
+              {/* Text */}
+              <motion.div style={{ opacity: textOpacity, y: textY }}>
+                <motion.div {...stagger(0.1)} className="inline-flex items-center gap-2.5 rounded-full bg-white/80 backdrop-blur border border-[#123CC4]/15 pl-2.5 pr-4 py-1.5 text-xs sm:text-[13px] font-medium shadow-[0_8px_30px_-12px_rgba(18,60,196,.4)]">
+                  <span className="relative flex w-2 h-2">
+                    <span className="absolute inset-0 rounded-full bg-[#123CC4] animate-ping opacity-60"></span>
+                    <span className="relative w-2 h-2 rounded-full bg-[#123CC4]"></span>
+                  </span>
+                  Available for freelance projects
+                </motion.div>
+
+                <motion.h1 {...stagger(0.2)} className="font-display font-semibold tracking-[-0.03em] leading-[1.04] text-[2.45rem] sm:text-6xl lg:text-[3.45rem] xl:text-[4rem] mt-6">
+                  I Turn Raw Footage Into <span className="shimmer-text">Stories That Hold Attention.</span>
+                </motion.h1>
+
+                <motion.p {...stagger(0.35)} className="mt-5 sm:mt-6 text-[15px] sm:text-lg text-[#17191F]/65 max-w-lg leading-relaxed">
+                  Retention-first video editing for creators and brands — sharp pacing, clean storytelling and a cinematic finish, from scroll-stopping shorts to long-form narratives.
+                </motion.p>
+
+                <motion.div {...stagger(0.5)} className="mt-7 sm:mt-9 flex flex-wrap gap-3">
+                  <a href="#work" className="group inline-flex items-center gap-2 bg-[#123CC4] text-white px-6 py-3.5 rounded-full text-sm sm:text-[15px] font-medium shadow-[0_14px_40px_-10px_rgba(18,60,196,.7)] hover:shadow-[0_18px_50px_-8px_rgba(18,60,196,.85)] hover:-translate-y-0.5 transition-all duration-300">
+                    View My Work
+                    <ArrowI className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </a>
+                  <a href="#contact" className="inline-flex items-center gap-2 bg-white/70 backdrop-blur border border-[#17191F]/12 px-6 py-3.5 rounded-full text-sm sm:text-[15px] font-medium hover:bg-[#E8EEFF] hover:border-[#123CC4]/30 hover:-translate-y-0.5 transition-all duration-300">
+                    Let's Work Together
+                  </a>
+                </motion.div>
+
+                <motion.div {...stagger(0.65)} className="mt-9 sm:mt-12 grid grid-cols-3 gap-4 max-w-md border-t border-[#17191F]/10 pt-5">
+                  {[["2-3d", "Short-form turnaround"], ["2-3", "Revision rounds"], ["4K", "Delivery available"]].map(([n, l]) => (
+                    <div key={l}>
+                      <div className="font-display text-xl sm:text-2xl font-semibold text-[#123CC4]">{n}</div>
+                      <div className="text-[11px] sm:text-xs text-[#17191F]/55 mt-0.5 leading-snug">{l}</div>
+                    </div>
+                  ))}
+                </motion.div>
+              </motion.div>
+
+              {/* Collage */}
+              <motion.div style={{ scale: collageScale, opacity: collageOpacity, y: collageY }} className="relative w-full max-w-[640px] mx-auto aspect-[10/9.6] will-change-transform">
+                <div className="absolute inset-[10%] rounded-full bg-[#123CC4]/20 blur-3xl" />
+                {tiles.map((cfg, i) => <Tile key={i} cfg={cfg} idx={i} p={p} />)}
+              </motion.div>
+            </div>
+
+            <motion.div style={{ opacity: cueOpacity }} className="hidden lg:flex absolute bottom-7 left-1/2 -translate-x-1/2 flex-col items-center gap-2 text-[10px] tracking-[0.25em] uppercase text-[#17191F]/50">
+              Scroll
+              <span className="relative w-px h-9 bg-[#17191F]/15 overflow-hidden"><span className="scroll-cue absolute inset-x-0 top-0 h-1/3 bg-[#123CC4]"></span></span>
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------- VIDEO CARD ---------- */
+    function VideoCard({ project, index }) {
+      const wrap = useRef(null);
+      const vid = useRef(null);
+      const bar = useRef(null);
+      const [playing, setPlaying] = useState(false);
+      const [muted, setMuted] = useState(true);
+      const [ready, setReady] = useState(false);
+
+      useEffect(() => {
+        const v = vid.current;
+        const io = new IntersectionObserver(
+          ([e]) => {
+            if (e.isIntersecting) { const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); }
+            else v.pause();
+          },
+          { threshold: 0.4 }
+        );
+        io.observe(wrap.current);
+        return () => io.disconnect();
+      }, []);
+
+      const toggle = (e) => {
+        e && e.stopPropagation();
+        const v = vid.current;
+        if (v.paused) { const pr = v.play(); pr && pr.catch && pr.catch(() => {}); } else v.pause();
+      };
+      const seek = (e) => {
+        e.stopPropagation();
+        const v = vid.current; if (!v.duration) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        v.currentTime = ((e.clientX - r.left) / r.width) * v.duration;
+      };
+      const onTime = () => {
+        const v = vid.current;
+        if (bar.current && v.duration) bar.current.style.width = (v.currentTime / v.duration) * 100 + "%";
+      };
+
+      return (
+        <motion.article
+          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.8, ease, delay: (index % 3) * 0.08 }}
+          className="break-inside-avoid mb-8"
+        >
+          <div
+            ref={wrap}
+            onClick={toggle}
+            style={{ aspectRatio: project.aspect.replace(":", "/") }}
+            className="group relative rounded-[22px] sm:rounded-3xl overflow-hidden bg-[#E8EEFF] glow-card hover:-translate-y-1 cursor-pointer"
+          >
+            <video
+              ref={vid}
+              src={project.video}
+              poster={poster(project.video, 800, 1)}
+              muted={muted} loop playsInline preload="none"
+              onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+              onTimeUpdate={onTime} onCanPlay={() => setReady(true)}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {!ready && <div className="absolute inset-0 bg-gradient-to-br from-[#E8EEFF] to-[#cfdcff] animate-pulse -z-0 pointer-events-none opacity-40" />}
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+            {/* Controls */}
+            <div className="absolute inset-x-0 bottom-0 px-3.5 pb-3.5 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-500 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0">
+              <button onClick={toggle} aria-label={playing ? "Pause" : "Play"} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-[#123CC4] transition-colors">
+                {playing ? <PauseI className="w-3.5 h-3.5" /> : <PlayI className="w-3.5 h-3.5 ml-0.5" />}
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }} aria-label={muted ? "Unmute" : "Mute"} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white flex items-center justify-center hover:bg-white hover:text-[#123CC4] transition-colors">
+                {muted ? <MuteI className="w-4 h-4" /> : <VolI className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* Progress */}
+            <div onClick={seek} className="absolute inset-x-0 bottom-0 h-3 flex items-end cursor-pointer group/bar">
+              <div className="w-full h-[3px] group-hover/bar:h-[5px] bg-white/25 transition-all">
+                <div ref={bar} className="h-full w-0 bg-[#5B82FF] shadow-[0_0_10px_rgba(91,130,255,.9)]" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-3.5 px-1 flex items-center justify-between text-[13px] text-[#17191F]/70">
+            <span className="font-medium tracking-tight">{project.category} - {project.title}</span>
+            <span className="text-[11px] font-mono text-[#17191F]/40">{project.aspect}</span>
+          </div>
+        </motion.article>
+      );
+    }
+
+    /* ---------- PORTFOLIO ---------- */
+    function Portfolio() {
+      const [filter, setFilter] = useState("All");
+      const filters = ["All", "Short-form", "Long-form"];
+      const list = projects.filter((p) => filter === "All" || p.category === filter);
+      return (
+        <section id="work" className="relative z-10 bg-[#F5F6F8] lg:-mt-[18vh] rounded-t-[32px] lg:rounded-t-[56px] shadow-[0_-30px_80px_-30px_rgba(18,60,196,.25)] pt-20 sm:pt-28 pb-16 sm:pb-24 px-5 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10 sm:mb-14">
+              <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8, ease }}>
+                <p className="text-xs tracking-[0.25em] uppercase text-[#123CC4] font-medium mb-3">Portfolio</p>
+                <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-[-0.03em]">Selected Work</h2>
+                <p className="mt-3 text-[#17191F]/55 max-w-md text-[15px]">Press play on nothing — everything runs as you scroll. Hover for controls.</p>
+              </motion.div>
+
+              <div className="relative inline-flex self-start md:self-auto p-1 rounded-full bg-white border border-[#17191F]/8 shadow-[0_8px_30px_-15px_rgba(23,25,31,.25)]">
+                {filters.map((f) => (
+                  <button key={f} onClick={() => setFilter(f)} className={`relative px-4 sm:px-5 py-2 text-sm rounded-full transition-colors duration-300 ${filter === f ? "text-white" : "text-[#17191F]/65 hover:text-[#17191F]"}`}>
+                    {filter === f && (
+                      <motion.span layoutId="pill" transition={{ type: "spring", stiffness: 400, damping: 32 }} className="absolute inset-0 rounded-full bg-[#123CC4] shadow-[0_6px_20px_-4px_rgba(18,60,196,.7)]" />
+                    )}
+                    <span className="relative">{f}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div key={filter} className="columns-1 md:columns-2 lg:columns-3 gap-6 lg:gap-8">
+              {list.map((p, i) => <VideoCard key={filter + p.id} project={p} index={i} />)}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------- PROCESS ---------- */
+    function Process() {
+      const steps = [
+        { n: "01", t: "Understand & Research", d: "We align on goals, audience and references. I study your niche so every cut feels native to the platform.", tag: "Brief" },
+        { n: "02", t: "Draft & Refine", d: "A first cut with pacing, sound and motion in place — then 2-3 focused rounds of revisions until it clicks.", tag: "Edit" },
+        { n: "03", t: "Finalize & Deliver", d: "Polished 1080p master, with 2K/4K available and project files on request. Updated throughout, delivered on time.", tag: "Deliver" }
+      ];
+      const container = { hidden: {}, show: { transition: { staggerChildren: 0.18 } } };
+      const item = { hidden: { opacity: 0, y: 50 }, show: { opacity: 1, y: 0, transition: { duration: 0.9, ease } } };
+      return (
+        <section id="process" className="py-16 sm:py-28 px-5 sm:px-6 bg-[#F5F6F8]">
+          <div className="mx-auto max-w-6xl">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8, ease }} className="max-w-xl mb-10 sm:mb-16">
+              <p className="text-xs tracking-[0.25em] uppercase text-[#123CC4] font-medium mb-3">Process</p>
+              <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-[-0.03em]">A calm, clear workflow.</h2>
+            </motion.div>
+            <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-80px" }} className="grid md:grid-cols-3 gap-5 sm:gap-6">
+              {steps.map((s) => (
+                <motion.div key={s.n} variants={item} className="glow-card relative overflow-hidden rounded-3xl bg-white border border-[#17191F]/6 p-7 sm:p-8 hover:-translate-y-1.5">
+                  <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#E8EEFF] blur-2xl" />
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <span className="font-display text-5xl font-semibold text-[#123CC4]/90">{s.n}</span>
+                      <span className="text-[11px] tracking-widest uppercase px-3 py-1 rounded-full bg-[#E8EEFF] text-[#123CC4] font-medium">{s.tag}</span>
+                    </div>
+                    <h3 className="font-display text-xl font-semibold mt-10 mb-3 tracking-tight">{s.t}</h3>
+                    <p className="text-[#17191F]/60 text-[15px] leading-relaxed">{s.d}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------- ABOUT ---------- */
+    function About() {
+      const tags = ["Short-form", "Long-form", "Talking Head", "Motion Ads", "Sound & Pacing", "Captions"];
+      return (
+        <section id="about" className="relative py-16 sm:py-28 px-5 sm:px-6 bg-[#E8EEFF] overflow-hidden">
+          <div className="absolute -left-32 top-0 w-[420px] h-[420px] rounded-full bg-[#123CC4]/10 blur-3xl" />
+          <div className="absolute -right-24 bottom-0 w-[360px] h-[360px] rounded-full bg-white/80 blur-3xl" />
+          <div className="relative mx-auto max-w-6xl grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
+            <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: "-80px" }} transition={{ duration: 1, ease }} className="relative">
+              <div className="relative rounded-[28px] bg-white/70 backdrop-blur-xl border border-white p-5 sm:p-6 shadow-[0_40px_80px_-30px_rgba(18,60,196,.35)]">
+                <div className="flex items-center gap-1.5 mb-4">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#17191F]/15"></span><span className="w-2.5 h-2.5 rounded-full bg-[#17191F]/15"></span><span className="w-2.5 h-2.5 rounded-full bg-[#17191F]/15"></span>
+                  <span className="ml-auto text-[10px] font-mono text-[#17191F]/40">timeline_v3.prproj</span>
+                </div>
+                {[["V2", [[4, 26], [34, 18], [56, 30]]], ["V1", [[0, 22], [24, 30], [57, 20], [80, 18]]], ["A1", [[0, 48], [52, 46]]], ["FX", [[12, 14], [48, 22], [76, 12]]]].map(([name, clips], r) => (
+                  <div key={name} className="flex items-center gap-3 mb-2.5">
+                    <span className="w-6 text-[10px] font-mono text-[#17191F]/40">{name}</span>
+                    <div className="relative flex-1 h-8 rounded-lg bg-[#E8EEFF]/70">
+                      {clips.map(([l, w], i) => (
+                        <motion.div key={i}
+                          initial={{ width: 0, opacity: 0 }} whileInView={{ width: w + "%", opacity: 1 }} viewport={{ once: true }}
+                          transition={{ duration: 0.9, delay: 0.3 + r * 0.12 + i * 0.1, ease }}
+                          style={{ left: l + "%" }}
+                          className={`absolute inset-y-0 rounded-lg ${name === "A1" ? "bg-[#17191F]/80" : name === "FX" ? "bg-[#5B82FF]" : (i + r) % 2 ? "bg-[#123CC4]" : "bg-[#123CC4]/70"}`} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <motion.div initial={{ left: "6%" }} animate={{ left: ["6%", "90%", "6%"] }} transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
+                  className="absolute top-[58px] bottom-5 w-px bg-red-500 ml-8 pointer-events-none">
+                  <span className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-sm"></span>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-80px" }} transition={{ duration: 1, ease, delay: 0.1 }}>
+              <p className="text-xs tracking-[0.25em] uppercase text-[#123CC4] font-medium mb-3">About</p>
+              <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-[-0.03em] mb-6">Behind the Edit</h2>
+              <p className="text-[#17191F]/70 text-base sm:text-lg leading-relaxed">
+                I'm a freelance video editor who believes the best edit is the one nobody notices — it just keeps people watching. I obsess over rhythm, sound and small details, shaping raw footage into clear, engaging stories.
+              </p>
+              <p className="mt-4 text-[#17191F]/60 text-[15px] leading-relaxed">
+                From talking-head shorts built for retention to long-form pieces and motion ads, I work closely with you, share frequent updates, and deliver on time — so you can focus on creating.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <span key={t} className="px-3.5 py-1.5 rounded-full bg-white/80 border border-[#123CC4]/10 text-[13px] text-[#17191F]/75 hover:bg-[#123CC4] hover:text-white transition-colors duration-300">{t}</span>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------- FAQ ---------- */
+    function FaqItem({ f, open, onClick, i }) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-30px" }}
+          transition={{ duration: 0.5, ease, delay: i * 0.04 }}
+          className={`rounded-2xl border transition-all duration-300 ${open ? "bg-white border-[#123CC4]/20 shadow-[0_14px_40px_-18px_rgba(18,60,196,.4)]" : "bg-white/60 border-[#17191F]/8 hover:border-[#123CC4]/20"}`}
+        >
+          <button onClick={onClick} aria-expanded={open} className="w-full flex items-center justify-between gap-3 text-left px-4 py-3.5 sm:px-6 sm:py-5">
+            <span className="text-[15px] sm:text-[17px] font-medium leading-snug tracking-tight">{f.q}</span>
+            <span className={`shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors duration-300 ${open ? "bg-[#123CC4] text-white" : "bg-[#E8EEFF] text-[#123CC4]"}`}>
+              <motion.svg animate={{ rotate: open ? 45 : 0 }} transition={{ duration: 0.3 }} viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></motion.svg>
+            </span>
+          </button>
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                key="content"
+                initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <p className="px-4 pb-4 sm:px-6 sm:pb-6 text-[14px] sm:text-[15px] text-[#17191F]/65 leading-relaxed">{f.a}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      );
+    }
+
+    function FAQ() {
+      const [open, setOpen] = useState(0);
+      return (
+        <section id="faq" className="py-14 sm:py-28 px-4 sm:px-6 bg-[#F5F6F8]">
+          <div className="mx-auto max-w-6xl grid lg:grid-cols-[0.8fr_1.2fr] gap-8 lg:gap-16">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8, ease }} className="lg:sticky lg:top-28 self-start px-1">
+              <p className="text-xs tracking-[0.25em] uppercase text-[#123CC4] font-medium mb-3">FAQ</p>
+              <h2 className="font-display text-3xl sm:text-5xl font-semibold tracking-[-0.03em]">Good questions.</h2>
+              <p className="mt-3 text-[#17191F]/55 text-[14px] sm:text-[15px] max-w-xs">Everything you need to know before we start. Still unsure? Just message me.</p>
+            </motion.div>
+            <div className="space-y-2.5 sm:space-y-3">
+              {faqs.map((f, i) => (
+                <FaqItem key={i} i={i} f={f} open={open === i} onClick={() => setOpen(open === i ? -1 : i)} />
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------- CONTACT ---------- */
+    function Contact() {
+      const cards = [
+        { name: "WhatsApp", sub: "Fastest way to reach me", href: "https://wa.me/8801345957668", d: ["M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1 1 21 11.5z", "M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-1.8-.9-.8.6a3.6 3.6 0 0 1-1.7-1.7l.6-.8-.9-1.8L9 9.5z"] },
+        { name: "Email", sub: "rumanbyte@gmail.com", href: "mailto:rumanbyte@gmail.com", d: ["M3 6h18v12H3z", "M3 7l9 6.5L21 7"] },
+        { name: "LinkedIn", sub: "Let's connect", href: "https://www.linkedin.com/in/rumanbyte", d: ["M4 9h3.5v11H4z", "M5.75 4.5a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5z", "M10 9h3.4v1.6c.6-1 1.8-1.9 3.6-1.9 3 0 3.9 1.9 3.9 4.7V20h-3.5v-5.7c0-1.4-.3-2.4-1.7-2.4s-2.2 1-2.2 2.5V20H10z"] }
+      ];
+      return (
+        <section id="contact" className="relative py-16 sm:py-28 px-5 sm:px-6 overflow-hidden bg-[#F5F6F8]">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] max-w-full rounded-full bg-[radial-gradient(circle,rgba(18,60,196,.14),rgba(232,238,255,.6)_45%,transparent_70%)] blur-3xl pointer-events-none" />
+          <div className="relative mx-auto max-w-5xl text-center">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.9, ease }}>
+              <p className="text-xs tracking-[0.25em] uppercase text-[#123CC4] font-medium mb-3">Contact</p>
+              <h2 className="font-display text-4xl sm:text-6xl font-semibold tracking-[-0.03em]">Let's Work Together</h2>
+              <p className="mt-4 text-[#17191F]/60 max-w-md mx-auto text-[15px] sm:text-base">Have footage waiting to become something great? Pick your favourite way to reach out.</p>
+            </motion.div>
+            <div className="mt-10 sm:mt-14 grid sm:grid-cols-3 gap-4 sm:gap-5 text-left">
+              {cards.map((c, i) => (
+                <motion.a
+                  key={c.name} href={c.href} target={c.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                  transition={{ duration: 0.8, ease, delay: i * 0.12 }}
+                  whileHover={{ scale: 1.045 }} whileTap={{ scale: 0.98 }}
+                  className="glow-card group relative block rounded-3xl bg-white border border-[#17191F]/6 p-6 sm:p-7 overflow-hidden"
+                >
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_30%_0%,rgba(232,238,255,1),transparent_65%)]" />
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl bg-[#E8EEFF] text-[#123CC4] flex items-center justify-center group-hover:bg-[#123CC4] group-hover:text-white group-hover:shadow-[0_10px_30px_-6px_rgba(18,60,196,.7)] transition-all duration-500">
+                      <Icon d={c.d} className="w-6 h-6" />
+                    </div>
+                    <div className="mt-8 flex items-end justify-between">
+                      <div>
+                        <h3 className="font-display text-lg font-semibold tracking-tight">{c.name}</h3>
+                        <p className="text-[13px] text-[#17191F]/55 mt-0.5 break-all">{c.sub}</p>
+                      </div>
+                      <ArrowUR className="w-5 h-5 text-[#123CC4] opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                    </div>
+                  </div>
+                </motion.a>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="border-t border-[#17191F]/8 py-8 px-5 bg-[#F5F6F8]">
+          <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-[#17191F]/50">
+            <span className="font-display font-semibold text-[#17191F]">Ruman<span className="text-[#123CC4]">.</span></span>
+            <span>&copy; {new Date().getFullYear()} Ruman. All rights reserved.</span>
+          </div>
+        </footer>
+      );
+    }
+
+    function App() {
+      return (
+        <>
+          <Nav />
+          <main>
+            <Hero />
+            <Portfolio />
+            <Process />
+            <About />
+            <FAQ />
+            <Contact />
+          </main>
+          <Footer />
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
