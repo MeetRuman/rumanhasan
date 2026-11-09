@@ -3,18 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ruman — Video Editor Portfolio</title>
-  <meta name="description" content="Freelance video editor turning raw footage into stories that hold attention. Short-form, long-form and motion ads." />
+  <title>Ruman Hasan — Video Editor & Visual Storyteller</title>
+  <meta name="description" content="Retention-first video editing for creators and brands. I turn raw footage into stories that hold attention." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Ruman Hasan — Video Editor & Visual Storyteller" />
+  <meta property="og:description" content="Retention-first video editing for creators and brands. I turn raw footage into stories that hold attention." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://rumanhasan.com" />
+  <meta property="og:image" content="https://rumanhasan.com/og-image.jpg" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ruman Hasan — Video Editor & Visual Storyteller" />
+  <meta name="twitter:description" content="Retention-first video editing for creators and brands. I turn raw footage into stories that hold attention." />
+  <meta name="twitter:image" content="https://rumanhasan.com/og-image.jpg" />
+
+  <!-- JSON-LD Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Ruman Hasan",
+    "jobTitle": "Video Editor",
+    "url": "https://rumanhasan.com"
+  }
+  </script>
+
+  <link rel="icon" href="/favicon.ico" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script defer crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script defer src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+  <script defer src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
 
   <style>
     :root {
@@ -288,7 +314,7 @@
             if (e.isIntersecting) { const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); }
             else v.pause();
           },
-          { threshold: 0.4 }
+          { threshold: 0 }
         );
         io.observe(wrap.current);
         return () => io.disconnect();
@@ -327,7 +353,7 @@
               ref={vid}
               src={project.video}
               poster={poster(project.video, 800, 1)}
-              muted={muted} loop playsInline preload="none"
+              muted={muted} loop playsInline preload="metadata"
               onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
               onTimeUpdate={onTime} onCanPlay={() => setReady(true)}
               className="absolute inset-0 w-full h-full object-cover"
@@ -447,18 +473,22 @@
                     <div className="relative flex-1 h-8 rounded-lg bg-[#E8EEFF]/70">
                       {clips.map(([l, w], i) => (
                         <motion.div key={i}
-                          initial={{ width: 0, opacity: 0 }} whileInView={{ width: w + "%", opacity: 1 }} viewport={{ once: true }}
+                          initial={{ scaleX: 0, opacity: 0 }} whileInView={{ scaleX: 1, opacity: 1 }} viewport={{ once: true }}
                           transition={{ duration: 0.9, delay: 0.3 + r * 0.12 + i * 0.1, ease }}
-                          style={{ left: l + "%" }}
+                          style={{ left: l + "%", width: w + "%", transformOrigin: "left" }}
                           className={`absolute inset-y-0 rounded-lg ${name === "A1" ? "bg-[#17191F]/80" : name === "FX" ? "bg-[#5B82FF]" : (i + r) % 2 ? "bg-[#123CC4]" : "bg-[#123CC4]/70"}`} />
                       ))}
                     </div>
                   </div>
                 ))}
-                <motion.div initial={{ left: "6%" }} animate={{ left: ["6%", "90%", "6%"] }} transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
-                  className="absolute top-[58px] bottom-5 w-px bg-red-500 ml-8 pointer-events-none">
-                  <span className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-sm"></span>
-                </motion.div>
+                <div className="absolute top-[58px] bottom-5 left-0 right-0 ml-8 pointer-events-none">
+                  <motion.div initial={{ x: "6%" }} animate={{ x: ["6%", "90%", "6%"] }} transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
+                    className="h-full w-full">
+                    <div className="w-px h-full bg-red-500 relative">
+                      <span className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-sm"></span>
+                    </div>
+                  </motion.div>
+                </div>
               </div>
             </motion.div>
 
@@ -500,7 +530,7 @@
             {open && (
               <motion.div
                 key="content"
-                initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
                 className="overflow-hidden"
               >
